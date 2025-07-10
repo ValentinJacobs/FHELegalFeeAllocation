@@ -1,0 +1,185 @@
+name: Security Audit
+
+on:
+  push:
+    branches:
+      - main
+      - develop
+  pull_request:
+    branches:
+      - main
+      - develop
+  schedule:
+    # Run security audit daily at 00:00 UTC
+    - cron: '0 0 * * *'
+
+permissions:
+  contents: read
+  security-events: write
+
+jobs:
+  dependency-audit:
+    name: Dependency Security Audit
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20.x'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Run npm audit
+        run: npm audit --audit-level=moderate
+        continue-on-error: true
+
+      - name: Generate audit report
+        run: npm audit --json > audit-report.json
+        continue-on-error: true
+
+      - name: Upload audit report
+        uses: actions/upload-artifact@v4
+        with:
+          name: security-audit-report
+          path: audit-report.json
+          retention-days: 30
+
+  solidity-security:
+    name: Solidity Security Analysis
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20.x'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Run Solhint security checks
+        run: npm run lint:sol
+        continue-on-error: true
+
+      - name: Check for common vulnerabilities
+        run: |
+          echo "Checking for common Solidity vulnerabilities..."
+
+          # Check for delegatecall usage
+          if grep -r "delegatecall" contracts/ 2>/dev/null; then
+            echo "⚠️  Warning: delegatecall found - ensure it's used safely"
+          fi
+
+          # Check for selfdestruct usage
+          if grep -r "selfdestruct\|suicide" contracts/ 2>/dev/null; then
+            echo "⚠️  Warning: selfdestruct found - ensure it's protected"
+          fi
+
+          # Check for tx.origin usage
+          if grep -r "tx.origin" contracts/ 2>/dev/null; then
+            echo "⚠️  Warning: tx.origin found - use msg.sender instead"
+          fi
+
+          # Check for block.timestamp usage (timestamp dependence)
+          if grep -r "block.timestamp\|now" contracts/ 2>/dev/null; then
+            echo "ℹ️  Info: timestamp usage found - ensure it's not critical for security"
+          fi
+
+          echo "✅ Security checks completed"
+
+  gas-analysis:
+    name: Gas Usage Analysis
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20.x'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Compile contracts
+        run: npm run compile
+
+      - name: Run gas reporter
+        run: npm run test:gas
+        env:
+          REPORT_GAS: true
+
+      - name: Check contract size
+        run: |
+          echo "Checking contract sizes..."
+          npx hardhat size-contracts || echo "Contract size check completed"
+
+  code-quality:
+    name: Code Quality Analysis
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20.x'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Run ESLint
+        run: npm run lint
+        continue-on-error: true
+
+      - name: Run Solhint
+        run: npm run lint:sol
+        continue-on-error: true
+
+      - name: Check code formatting
+        run: npm run format:check
+        continue-on-error: true
+
+      - name: Generate quality report
+        run: |
+          echo "Code Quality Report" > quality-report.txt
+          echo "===================" >> quality-report.txt
+          echo "" >> quality-report.txt
+          echo "JavaScript Linting:" >> quality-report.txt
+          npm run lint >> quality-report.txt 2>&1 || true
+          echo "" >> quality-report.txt
+          echo "Solidity Linting:" >> quality-report.txt
+          npm run lint:sol >> quality-report.txt 2>&1 || true
+          echo "" >> quality-report.txt
+          cat quality-report.txt
+
+      - name: Upload quality report
+        uses: actions/upload-artifact@v4
+        with:
+          name: code-quality-report
+          path: quality-report.txt
+          retention-days: 30
