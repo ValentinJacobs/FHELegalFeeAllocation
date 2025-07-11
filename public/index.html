@@ -1,0 +1,733 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Confidential Legal Fee Allocation System</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/ethers/5.7.2/ethers.umd.min.js"></script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            line-height: 1.6;
+            background: linear-gradient(135deg, #1a202c 0%, #2d3748 100%);
+            min-height: 100vh;
+            color: #e2e8f0;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+
+        .header {
+            text-align: center;
+            color: #f7fafc;
+            margin-bottom: 30px;
+            padding: 20px;
+            border-radius: 15px;
+            background: rgba(45, 55, 72, 0.8);
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(99, 179, 237, 0.3);
+        }
+
+        .header h1 {
+            font-size: 2.5rem;
+            margin-bottom: 10px;
+        }
+
+        .header p {
+            font-size: 1.2rem;
+            opacity: 0.9;
+        }
+
+        .main-content {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 30px;
+            margin-bottom: 30px;
+        }
+
+        .card {
+            background: rgba(45, 55, 72, 0.95);
+            border-radius: 15px;
+            padding: 25px;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5);
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(99, 179, 237, 0.2);
+        }
+
+        .card h2 {
+            color: #63b3ed;
+            margin-bottom: 20px;
+            font-size: 1.5rem;
+            border-bottom: 2px solid #63b3ed;
+            padding-bottom: 10px;
+        }
+
+        .form-group {
+            margin-bottom: 20px;
+        }
+
+        .form-group label {
+            display: block;
+            margin-bottom: 8px;
+            font-weight: 600;
+            color: #cbd5e0;
+        }
+
+        .form-group input,
+        .form-group textarea,
+        .form-group select {
+            width: 100%;
+            padding: 12px;
+            border: 2px solid #4a5568;
+            border-radius: 8px;
+            font-size: 16px;
+            transition: border-color 0.3s;
+            background: #1a202c;
+            color: #e2e8f0;
+        }
+
+        .form-group input:focus,
+        .form-group textarea:focus,
+        .form-group select:focus {
+            outline: none;
+            border-color: #63b3ed;
+            box-shadow: 0 0 0 3px rgba(99, 179, 237, 0.2);
+        }
+
+        .btn {
+            background: linear-gradient(135deg, #4299e1 0%, #3182ce 100%);
+            color: white;
+            border: none;
+            padding: 12px 25px;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 16px;
+            font-weight: 600;
+            transition: transform 0.2s, box-shadow 0.2s;
+            margin-right: 10px;
+            margin-bottom: 10px;
+        }
+
+        .btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(66, 153, 225, 0.5);
+        }
+
+        .btn:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+            transform: none;
+        }
+
+        .btn-secondary {
+            background: linear-gradient(135deg, #4a5568 0%, #2d3748 100%);
+        }
+
+        .btn-danger {
+            background: linear-gradient(135deg, #fc8181 0%, #f56565 100%);
+        }
+
+        .status {
+            padding: 10px 15px;
+            border-radius: 8px;
+            margin-bottom: 15px;
+            font-weight: 600;
+        }
+
+        .status.success {
+            background: #c6f6d5;
+            color: #22543d;
+            border-left: 4px solid #38a169;
+        }
+
+        .status.error {
+            background: #fed7d7;
+            color: #742a2a;
+            border-left: 4px solid #e53e3e;
+        }
+
+        .status.info {
+            background: #bee3f8;
+            color: #2a4365;
+            border-left: 4px solid #3182ce;
+        }
+
+        .wallet-info {
+            background: rgba(45, 55, 72, 0.8);
+            border: 2px solid #63b3ed;
+            border-radius: 10px;
+            padding: 15px;
+            margin-bottom: 20px;
+        }
+
+        .case-list {
+            grid-column: 1 / -1;
+        }
+
+        .case-item {
+            background: rgba(45, 55, 72, 0.9);
+            border-radius: 10px;
+            padding: 20px;
+            margin-bottom: 15px;
+            border-left: 4px solid #63b3ed;
+        }
+
+        .case-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 15px;
+        }
+
+        .case-id {
+            font-size: 1.2rem;
+            font-weight: 700;
+            color: #63b3ed;
+        }
+
+        .case-status {
+            padding: 5px 12px;
+            border-radius: 20px;
+            font-size: 0.9rem;
+            font-weight: 600;
+        }
+
+        .case-status.active {
+            background: #c6f6d5;
+            color: #22543d;
+        }
+
+        .case-status.settled {
+            background: #e2e8f0;
+            color: #4a5568;
+        }
+
+        .parties-list {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 10px;
+            margin-top: 10px;
+        }
+
+        .party-tag {
+            background: #4299e1;
+            color: white;
+            padding: 4px 8px;
+            border-radius: 15px;
+            font-size: 0.8rem;
+        }
+
+        .hidden {
+            display: none;
+        }
+
+        .loading {
+            text-align: center;
+            padding: 20px;
+        }
+
+        .spinner {
+            border: 4px solid #2d3748;
+            border-top: 4px solid #63b3ed;
+            border-radius: 50%;
+            width: 40px;
+            height: 40px;
+            animation: spin 1s linear infinite;
+            margin: 0 auto;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+            gap: 15px;
+            margin-bottom: 20px;
+        }
+
+        .stat-item {
+            text-align: center;
+            padding: 15px;
+            background: rgba(99, 179, 237, 0.2);
+            border-radius: 10px;
+            color: #f7fafc;
+            border: 1px solid rgba(99, 179, 237, 0.3);
+        }
+
+        .stat-number {
+            font-size: 2rem;
+            font-weight: 700;
+        }
+
+        .stat-label {
+            font-size: 0.9rem;
+            opacity: 0.8;
+        }
+
+        @media (max-width: 768px) {
+            .main-content {
+                grid-template-columns: 1fr;
+            }
+
+            .header h1 {
+                font-size: 2rem;
+            }
+
+            .case-header {
+                flex-direction: column;
+                align-items: flex-start;
+                gap: 10px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>🔒 Confidential Legal Fee Allocation System</h1>
+            <p>Privacy-preserving legal cost calculation platform powered by Zama FHE technology</p>
+            <div class="stats-grid">
+                <div class="stat-item">
+                    <div class="stat-number" id="totalCases">0</div>
+                    <div class="stat-label">Total Cases</div>
+                </div>
+                <div class="stat-item">
+                    <div class="stat-number" id="activeCases">0</div>
+                    <div class="stat-label">Active Cases</div>
+                </div>
+                <div class="stat-item">
+                    <div class="stat-number" id="settledCases">0</div>
+                    <div class="stat-label">Settled Cases</div>
+                </div>
+            </div>
+        </div>
+
+        <div id="connectionStatus" class="wallet-info">
+            <div id="connectWallet">
+                <button class="btn" onclick="connectWallet()">Connect Wallet</button>
+                <p>Please connect your MetaMask wallet to use this application</p>
+            </div>
+            <div id="walletConnected" class="hidden">
+                <p><strong>Connected Account:</strong> <span id="walletAddress"></span></p>
+                <p><strong>Network:</strong> <span id="networkName">Sepolia Testnet</span></p>
+            </div>
+        </div>
+
+        <div id="statusMessage"></div>
+
+        <div class="main-content">
+            <div class="card">
+                <h2>📋 Create New Case</h2>
+                <div class="form-group">
+                    <label>Case Description:</label>
+                    <textarea id="caseDescription" placeholder="Enter case description..." rows="3"></textarea>
+                </div>
+                <div class="form-group">
+                    <label>Total Fee (ETH):</label>
+                    <input type="number" id="totalFee" placeholder="0.1" step="0.001" min="0">
+                </div>
+                <div class="form-group">
+                    <label>Complexity (1-100):</label>
+                    <input type="number" id="complexity" placeholder="50" min="1" max="100">
+                </div>
+                <div class="form-group">
+                    <label>Party Addresses (one per line):</label>
+                    <textarea id="partyAddresses" placeholder="0x123...&#10;0x456...&#10;0x789..." rows="4"></textarea>
+                </div>
+                <button class="btn" onclick="createCase()">Create Case</button>
+            </div>
+
+            <div class="card">
+                <h2>⚖️ Case Management</h2>
+                <div class="form-group">
+                    <label>Select Case:</label>
+                    <select id="caseSelect">
+                        <option value="">Choose a case...</option>
+                    </select>
+                </div>
+
+                <div id="caseManagement" class="hidden">
+                    <div class="form-group">
+                        <label>Add Work Hours:</label>
+                        <input type="number" id="additionalHours" placeholder="10" min="1">
+                        <button class="btn btn-secondary" onclick="updateTimeSpent()">Update Time</button>
+                    </div>
+
+                    <div class="form-group">
+                        <label>Set Party Responsibility:</label>
+                        <select id="partySelect">
+                            <option value="">Select party...</option>
+                        </select>
+                        <input type="number" id="responsibilityRatio" placeholder="Responsibility %" min="0" max="100">
+                        <button class="btn btn-secondary" onclick="setResponsibility()">Set Responsibility</button>
+                    </div>
+
+                    <div class="form-group">
+                        <button class="btn" onclick="calculateFees()">Calculate Fee Allocation</button>
+                        <button class="btn btn-secondary" onclick="recordPayment()">Record Payment</button>
+                        <button class="btn btn-danger" onclick="settleCase()">Emergency Settle</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="card case-list">
+            <h2>📊 Cases List</h2>
+            <div id="casesList">
+                <div class="loading">
+                    <div class="spinner"></div>
+                    <p>Loading case data...</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const CONTRACT_ADDRESS = "0x462368e2BeFEb579927821a6bdd571C68dA2EB26";
+        const CONTRACT_ABI = [
+            "function createCase(address[] calldata _parties, uint64 _totalFee, uint32 _complexity, string calldata _caseDescription) external returns (uint256)",
+            "function updateTimeSpent(uint256 _caseId, uint32 _additionalHours) external",
+            "function setResponsibilityRatio(uint256 _caseId, address _party, uint32 _responsibility) external",
+            "function calculateFeeAllocation(uint256 _caseId) external",
+            "function recordPayment(uint256 _caseId) external",
+            "function emergencySettleCase(uint256 _caseId) external",
+            "function getCaseInfo(uint256 _caseId) external view returns (uint256, uint256, bool, bool, uint256, uint256, bytes32)",
+            "function getPartyCases(address _party) external view returns (uint256[])",
+            "function getCaseParties(uint256 _caseId) external view returns (address[])",
+            "function getSystemStats() external view returns (uint256, uint256, uint256)",
+            "function getPartyAllocation(uint256 _caseId, address _party) external view returns (bool, uint256)",
+            "function totalCases() external view returns (uint256)",
+            "event CaseCreated(uint256 indexed caseId, bytes32 indexed caseHash, uint256 partyCount)",
+            "event FeeCalculated(uint256 indexed caseId, address indexed calculator)",
+            "event AllocationUpdated(uint256 indexed caseId, address indexed party)",
+            "event PaymentRecorded(uint256 indexed caseId, address indexed party)",
+            "event CaseSettled(uint256 indexed caseId, uint256 settlementTime)"
+        ];
+
+        let provider;
+        let signer;
+        let contract;
+        let userAccount;
+
+        async function connectWallet() {
+            try {
+                if (typeof ethers === 'undefined') {
+                    showStatus('Ethers.js library failed to load. Please refresh the page.', 'error');
+                    return;
+                }
+
+                if (typeof window.ethereum !== 'undefined') {
+                    provider = new ethers.providers.Web3Provider(window.ethereum);
+                    await window.ethereum.request({ method: 'eth_requestAccounts' });
+                    signer = provider.getSigner();
+                    userAccount = await signer.getAddress();
+
+                    contract = new ethers.Contract(CONTRACT_ADDRESS, CONTRACT_ABI, signer);
+
+                    document.getElementById('walletAddress').textContent =
+                        userAccount.substring(0, 6) + '...' + userAccount.substring(38);
+                    document.getElementById('connectWallet').classList.add('hidden');
+                    document.getElementById('walletConnected').classList.remove('hidden');
+
+                    await loadSystemStats();
+                    await loadCases();
+
+                    showStatus('Wallet connected successfully!', 'success');
+                } else {
+                    showStatus('Please install MetaMask wallet!', 'error');
+                }
+            } catch (error) {
+                console.error('Failed to connect wallet:', error);
+                showStatus('Failed to connect wallet: ' + error.message, 'error');
+            }
+        }
+
+        async function createCase() {
+            try {
+                const description = document.getElementById('caseDescription').value;
+                const totalFee = document.getElementById('totalFee').value;
+                const complexity = document.getElementById('complexity').value;
+                const addressesText = document.getElementById('partyAddresses').value;
+
+                if (!description || !totalFee || !complexity || !addressesText) {
+                    showStatus('Please fill in all required information', 'error');
+                    return;
+                }
+
+                const addresses = addressesText.split('\n')
+                    .map(addr => addr.trim())
+                    .filter(addr => addr.length > 0);
+
+                if (addresses.length < 2) {
+                    showStatus('At least 2 party addresses are required', 'error');
+                    return;
+                }
+
+                showStatus('Creating case...', 'info');
+
+                const feeWei = ethers.utils.parseEther(totalFee);
+                const tx = await contract.createCase(addresses, feeWei, complexity, description);
+                await tx.wait();
+
+                document.getElementById('caseDescription').value = '';
+                document.getElementById('totalFee').value = '';
+                document.getElementById('complexity').value = '';
+                document.getElementById('partyAddresses').value = '';
+
+                await loadSystemStats();
+                await loadCases();
+
+                showStatus('Case created successfully!', 'success');
+            } catch (error) {
+                console.error('Failed to create case:', error);
+                showStatus('Failed to create case: ' + error.message, 'error');
+            }
+        }
+
+        async function updateTimeSpent() {
+            try {
+                const caseId = document.getElementById('caseSelect').value;
+                const hours = document.getElementById('additionalHours').value;
+
+                if (!caseId || !hours) {
+                    showStatus('Please select a case and enter work hours', 'error');
+                    return;
+                }
+
+                showStatus('Updating work time...', 'info');
+
+                const tx = await contract.updateTimeSpent(caseId, hours);
+                await tx.wait();
+
+                document.getElementById('additionalHours').value = '';
+                showStatus('Work time updated successfully!', 'success');
+            } catch (error) {
+                console.error('Failed to update time:', error);
+                showStatus('Failed to update time: ' + error.message, 'error');
+            }
+        }
+
+        async function setResponsibility() {
+            try {
+                const caseId = document.getElementById('caseSelect').value;
+                const party = document.getElementById('partySelect').value;
+                const ratio = document.getElementById('responsibilityRatio').value;
+
+                if (!caseId || !party || !ratio) {
+                    showStatus('Please select case, party and enter responsibility ratio', 'error');
+                    return;
+                }
+
+                showStatus('Setting responsibility ratio...', 'info');
+
+                const tx = await contract.setResponsibilityRatio(caseId, party, ratio);
+                await tx.wait();
+
+                document.getElementById('responsibilityRatio').value = '';
+                showStatus('Responsibility ratio set successfully!', 'success');
+            } catch (error) {
+                console.error('Failed to set responsibility:', error);
+                showStatus('Failed to set responsibility: ' + error.message, 'error');
+            }
+        }
+
+        async function calculateFees() {
+            try {
+                const caseId = document.getElementById('caseSelect').value;
+
+                if (!caseId) {
+                    showStatus('Please select a case', 'error');
+                    return;
+                }
+
+                showStatus('Calculating fee allocation...', 'info');
+
+                const tx = await contract.calculateFeeAllocation(caseId);
+                await tx.wait();
+
+                showStatus('Fee allocation calculation completed!', 'success');
+            } catch (error) {
+                console.error('Failed to calculate fees:', error);
+                showStatus('Failed to calculate fees: ' + error.message, 'error');
+            }
+        }
+
+        async function recordPayment() {
+            try {
+                const caseId = document.getElementById('caseSelect').value;
+
+                if (!caseId) {
+                    showStatus('Please select a case', 'error');
+                    return;
+                }
+
+                showStatus('Recording payment...', 'info');
+
+                const tx = await contract.recordPayment(caseId);
+                await tx.wait();
+
+                await loadCases();
+                showStatus('Payment recorded successfully!', 'success');
+            } catch (error) {
+                console.error('Failed to record payment:', error);
+                showStatus('Failed to record payment: ' + error.message, 'error');
+            }
+        }
+
+        async function settleCase() {
+            try {
+                const caseId = document.getElementById('caseSelect').value;
+
+                if (!caseId) {
+                    showStatus('Please select a case', 'error');
+                    return;
+                }
+
+                if (!confirm('Are you sure you want to emergency settle this case? This action cannot be undone.')) {
+                    return;
+                }
+
+                showStatus('Settling case...', 'info');
+
+                const tx = await contract.emergencySettleCase(caseId);
+                await tx.wait();
+
+                await loadSystemStats();
+                await loadCases();
+                showStatus('Case settled successfully!', 'success');
+            } catch (error) {
+                console.error('Failed to settle case:', error);
+                showStatus('Failed to settle case: ' + error.message, 'error');
+            }
+        }
+
+        async function loadSystemStats() {
+            try {
+                const stats = await contract.getSystemStats();
+                document.getElementById('totalCases').textContent = stats[0].toString();
+                document.getElementById('activeCases').textContent = stats[1].toString();
+                document.getElementById('settledCases').textContent = stats[2].toString();
+            } catch (error) {
+                console.error('Failed to load statistics:', error);
+            }
+        }
+
+        async function loadCases() {
+            try {
+                const totalCases = await contract.totalCases();
+                const caseSelect = document.getElementById('caseSelect');
+                const casesList = document.getElementById('casesList');
+
+                caseSelect.innerHTML = '<option value="">Choose a case...</option>';
+                casesList.innerHTML = '';
+
+                for (let i = 1; i <= totalCases; i++) {
+                    try {
+                        const caseInfo = await contract.getCaseInfo(i);
+                        const parties = await contract.getCaseParties(i);
+
+                        const option = document.createElement('option');
+                        option.value = i;
+                        option.textContent = `Case #${i} - ${caseInfo[2] ? 'Active' : 'Settled'}`;
+                        caseSelect.appendChild(option);
+
+                        const caseDiv = document.createElement('div');
+                        caseDiv.className = 'case-item';
+                        caseDiv.innerHTML = `
+                            <div class="case-header">
+                                <div class="case-id">Case #${i}</div>
+                                <div class="case-status ${caseInfo[2] ? 'active' : 'settled'}">
+                                    ${caseInfo[2] ? 'Active' : 'Settled'}
+                                </div>
+                            </div>
+                            <p><strong>Number of Parties:</strong> ${caseInfo[1]}</p>
+                            <p><strong>Created:</strong> ${new Date(caseInfo[4] * 1000).toLocaleString()}</p>
+                            ${caseInfo[5] > 0 ? `<p><strong>Settled:</strong> ${new Date(caseInfo[5] * 1000).toLocaleString()}</p>` : ''}
+                            <div class="parties-list">
+                                ${parties.map(party =>
+                                    `<span class="party-tag">${party.substring(0, 6)}...${party.substring(38)}</span>`
+                                ).join('')}
+                            </div>
+                        `;
+                        casesList.appendChild(caseDiv);
+                    } catch (error) {
+                        console.error(`Failed to load case ${i}:`, error);
+                    }
+                }
+            } catch (error) {
+                console.error('Failed to load cases:', error);
+                document.getElementById('casesList').innerHTML =
+                    '<p class="status error">Failed to load cases: ' + error.message + '</p>';
+            }
+        }
+
+        document.getElementById('caseSelect').addEventListener('change', async function() {
+            const caseId = this.value;
+            const managementDiv = document.getElementById('caseManagement');
+            const partySelect = document.getElementById('partySelect');
+
+            if (caseId) {
+                try {
+                    const parties = await contract.getCaseParties(caseId);
+
+                    partySelect.innerHTML = '<option value="">Select party...</option>';
+                    parties.forEach(party => {
+                        const option = document.createElement('option');
+                        option.value = party;
+                        option.textContent = `${party.substring(0, 6)}...${party.substring(38)}`;
+                        partySelect.appendChild(option);
+                    });
+
+                    managementDiv.classList.remove('hidden');
+                } catch (error) {
+                    console.error('Failed to load parties:', error);
+                    showStatus('Failed to load parties: ' + error.message, 'error');
+                }
+            } else {
+                managementDiv.classList.add('hidden');
+            }
+        });
+
+        function showStatus(message, type) {
+            const statusDiv = document.getElementById('statusMessage');
+            statusDiv.innerHTML = `<div class="status ${type}">${message}</div>`;
+
+            if (type === 'success' || type === 'error') {
+                setTimeout(() => {
+                    statusDiv.innerHTML = '';
+                }, 5000);
+            }
+        }
+
+        window.addEventListener('load', function() {
+            console.log('Page loaded, ethers available:', typeof ethers !== 'undefined');
+
+            if (typeof window.ethereum !== 'undefined') {
+                window.ethereum.on('accountsChanged', function (accounts) {
+                    if (accounts.length === 0) {
+                        location.reload();
+                    } else {
+                        connectWallet();
+                    }
+                });
+
+                window.ethereum.on('chainChanged', function () {
+                    location.reload();
+                });
+            }
+        });
+    </script>
+</body>
+</html>
