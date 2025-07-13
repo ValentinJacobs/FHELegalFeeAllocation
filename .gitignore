@@ -1,0 +1,55 @@
+# Environment Variables
+.env
+.env.local
+.env.*.local
+
+# Dependencies
+node_modules/
+package-lock.json
+yarn.lock
+
+# Hardhat
+cache/
+artifacts/
+typechain-types/
+
+# Deployments (optional - comment out if you want to track deployments)
+deployments/
+reports/
+
+# Testing
+coverage/
+coverage.json
+.coverage_artifacts/
+.coverage_cache/
+.coverage_contracts/
+
+# Build outputs
+dist/
+build/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.DS_Store
+
+# Logs
+*.log
+logs/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# Hardhat specific
+gas-report.txt
+
+# TypeScript
+*.tsbuildinfo
+
+# Misc
+.cache
+temp/
+tmp/
