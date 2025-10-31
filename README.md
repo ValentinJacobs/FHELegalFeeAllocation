@@ -104,15 +104,25 @@ The beauty of FHE is that these calculations happen **without ever decrypting th
 
 ## Technical Stack
 
+### Smart Contract Layer
 - **Blockchain**: Ethereum (Sepolia Testnet)
 - **Smart Contract Language**: Solidity ^0.8.24
 - **Development Framework**: Hardhat 2.22.x
 - **Privacy Technology**: Zama fhEVM
-- **Frontend Deployment**: Vercel
 - **Libraries**:
-  - ethers.js v6
-  - @fhevm/solidity
+  - @fhevm/solidity (FHE operations)
   - OpenZeppelin security patterns
+
+### Frontend Application Layer
+- **Framework**: React 18.2.0 with TypeScript 5.3.0
+- **Build Tool**: Vite 5.0.0 (development server on port 3003)
+- **Web3 Integration**: ethers.js v6.4.0
+- **FHE SDK**: @fhevm/sdk (Zama's encryption library)
+- **Deployment**: Vercel (production-ready hosting)
+- **Development Tools**:
+  - ESLint 8.53.0 with React plugins
+  - TypeScript strict mode
+  - React Fast Refresh for HMR
 
 ---
 
@@ -122,22 +132,51 @@ The beauty of FHE is that these calculations happen **without ever decrypting th
 confidential-legal-fee-allocation/
 ├── contracts/
 │   └── ConfidentialLegalFeeAllocation.sol    # Main FHE smart contract
+│
+├── react-legal-fee-app/                       # 🆕 React Frontend Application
+│   ├── src/
+│   │   ├── components/
+│   │   │   ├── WalletConnect.tsx              # MetaMask integration
+│   │   │   ├── CreateCaseForm.tsx             # Case creation interface
+│   │   │   ├── CaseManagement.tsx             # Case operations UI
+│   │   │   ├── CasesList.tsx                  # Cases display
+│   │   │   └── Header.tsx                     # System stats header
+│   │   ├── hooks/
+│   │   │   └── useFHE.ts                      # FHE operations React hook
+│   │   ├── lib/
+│   │   │   └── fhe/
+│   │   │       └── client.ts                  # FHE client wrapper
+│   │   ├── types/
+│   │   │   └── index.ts                       # TypeScript interfaces
+│   │   ├── App.tsx                            # Main application
+│   │   ├── App.css                            # Styles
+│   │   └── main.tsx                           # Entry point
+│   ├── public/                                # Static assets
+│   ├── index.html                             # Root HTML
+│   ├── package.json                           # Frontend dependencies
+│   ├── vite.config.ts                         # Vite configuration
+│   ├── tsconfig.json                          # TypeScript config
+│   ├── vercel.json                            # Vercel deployment
+│   └── README.md                              # Frontend docs
+│
 ├── scripts/
 │   ├── deploy.js           # Deployment script
 │   ├── verify.js           # Etherscan verification
 │   ├── interact.js         # Interactive testing
 │   └── simulate.js         # Scenario simulations
+│
 ├── test/
 │   ├── ConfidentialLegalFeeAllocation.test.js  # Unit tests
 │   ├── IntegrationWorkflow.test.js             # Integration tests
 │   ├── EdgeCasesAndSecurity.test.js            # Security tests
 │   └── helpers.js                               # Test utilities
+│
 ├── .github/
 │   └── workflows/          # CI/CD automation
 ├── deployments/            # Deployment records (generated)
 ├── reports/                # Simulation reports (generated)
 ├── hardhat.config.js       # Hardhat configuration
-├── package.json            # Dependencies and scripts
+├── package.json            # Root dependencies and scripts
 ├── .env.example            # Environment template
 ├── DEPLOYMENT.md           # Deployment guide
 ├── TESTING.md              # Testing documentation
@@ -153,22 +192,38 @@ confidential-legal-fee-allocation/
 
 - Node.js v18+
 - npm or yarn
-- Ethereum wallet with Sepolia ETH
-- Etherscan API key (for verification)
+- Ethereum wallet with Sepolia ETH (MetaMask recommended)
+- Etherscan API key (for contract verification)
 
 ### Installation
+
+#### Smart Contract Setup
 
 ```bash
 # Clone the repository
 git clone https://github.com/ValentinJacobs/FHELegalFeeAllocation
 cd FHELegalFeeAllocation
 
-# Install dependencies
+# Install smart contract dependencies
 npm install
 
 # Configure environment
 cp .env.example .env
 # Edit .env with your credentials
+```
+
+#### React Frontend Setup
+
+```bash
+# Navigate to React app directory
+cd react-legal-fee-app
+
+# Install frontend dependencies
+npm install
+
+# Start development server
+npm run dev
+# App runs on http://localhost:3003
 ```
 
 ### Configuration
@@ -361,6 +416,327 @@ Returns overall system statistics.
 
 ---
 
+## React Frontend Application
+
+### Overview
+
+The **react-legal-fee-app** is a modern, production-ready web application built with React 18 and TypeScript that provides a user-friendly interface for interacting with the Confidential Legal Fee Allocation smart contract. It enables legal professionals to manage cases with complete privacy using Zama's FHE technology.
+
+### Architecture
+
+The frontend follows a component-based architecture with clear separation of concerns:
+
+```
+React App Architecture
+├── Components Layer          # UI components
+│   ├── WalletConnect        # MetaMask integration
+│   ├── CreateCaseForm       # Case creation interface
+│   ├── CaseManagement       # Case operations
+│   ├── CasesList            # Cases display
+│   └── Header               # System statistics
+│
+├── Hooks Layer              # Custom React hooks
+│   └── useFHE               # FHE operations hook
+│
+├── Library Layer            # Core functionality
+│   └── fhe/client           # FHE client wrapper
+│
+└── Types Layer              # TypeScript definitions
+    └── interfaces           # Type safety
+```
+
+### Key Features
+
+#### 1. Wallet Integration
+- **MetaMask Connection**: One-click wallet connection
+- **Network Detection**: Automatic Sepolia testnet detection
+- **Account Management**: Real-time account change detection
+- **Chain Validation**: Ensures correct network usage
+
+#### 2. Case Creation
+- **Multi-Party Setup**: Add multiple parties to a legal case
+- **Encrypted Fee Input**: Total fee amount encrypted before submission
+- **Complexity Rating**: Case complexity (1-100) encrypted
+- **Description**: Plain text case description
+- **Real-time Validation**: Input validation before submission
+
+#### 3. Case Management Operations
+
+**Time Tracking**
+```typescript
+// Add billable hours (encrypted)
+await contract.updateTimeSpent(caseId, additionalHours);
+```
+
+**Responsibility Distribution**
+```typescript
+// Set party responsibility percentage (encrypted)
+await contract.setResponsibilityRatio(caseId, partyAddress, percentage);
+```
+
+**Fee Calculation**
+```typescript
+// Calculate encrypted fee allocations
+await contract.calculateFeeAllocation(caseId);
+```
+
+**Payment Recording**
+```typescript
+// Record payment completion
+await contract.recordPayment(caseId);
+```
+
+**Emergency Settlement**
+```typescript
+// Admin-only emergency settlement
+await contract.emergencySettleCase(caseId);
+```
+
+#### 4. Client-Side Encryption
+
+The app uses **@fhevm/sdk** for client-side encryption:
+
+```typescript
+// Initialize FHE client
+const fheClient = await FhevmClient.create({
+  provider: window.ethereum,
+  network: 'sepolia',
+  gatewayUrl: 'https://gateway.zama.ai'
+});
+
+// Encrypt uint64 values (fees)
+const encryptedFee = await fheClient.encrypt.uint64(totalFeeInWei);
+
+// Encrypt uint32 values (complexity, hours, responsibility)
+const encryptedComplexity = await fheClient.encrypt.uint32(complexityScore);
+
+// Use encrypted data in contract call
+await contract.createCase(
+  parties,
+  encryptedFee.handle,
+  encryptedComplexity.handle,
+  description,
+  encryptedFee.proof
+);
+```
+
+#### 5. System Statistics Dashboard
+
+Real-time statistics display:
+- **Total Cases**: All cases created
+- **Active Cases**: Currently processing
+- **Settled Cases**: Completed cases
+
+### Tech Stack Details
+
+**Core Framework**
+- React 18.2.0 with Hooks API
+- TypeScript 5.3.0 (strict mode)
+- Vite 5.0.0 for blazing-fast HMR
+
+**Web3 Integration**
+- ethers.js 6.4.0 for blockchain interaction
+- @fhevm/sdk for FHE encryption/decryption
+- MetaMask as Web3 provider
+
+**Development Experience**
+- Hot Module Replacement (HMR)
+- TypeScript IntelliSense
+- ESLint for code quality
+- Component-based architecture
+
+**Deployment**
+- Vercel hosting
+- Automatic deployments from Git
+- Production-optimized builds
+- CDN distribution
+
+### Component Documentation
+
+#### WalletConnect Component
+
+Handles MetaMask wallet connection and account management.
+
+**Features:**
+- Connect/disconnect wallet
+- Display connected address
+- Network detection
+- Account change listeners
+
+**Usage:**
+```tsx
+<WalletConnect
+  onConnect={handleWalletConnect}
+  onDisconnect={handleWalletDisconnect}
+/>
+```
+
+#### CreateCaseForm Component
+
+Form for creating new legal cases with encrypted data.
+
+**Features:**
+- Multi-party address input
+- Fee amount encryption (Wei conversion)
+- Complexity slider (1-100)
+- Case description field
+- Form validation
+
+**Encrypted Fields:**
+- Total Fee (euint64)
+- Complexity Score (euint32)
+
+#### CaseManagement Component
+
+Interface for managing existing cases.
+
+**Operations:**
+- Add work hours
+- Set responsibility ratios
+- Calculate allocations
+- Record payments
+- Emergency settlement
+
+#### CasesList Component
+
+Displays all cases with details.
+
+**Information Shown:**
+- Case ID and status
+- Party addresses
+- Creation timestamp
+- Settlement status
+- Case hash
+
+#### Header Component
+
+Shows system-wide statistics.
+
+**Metrics:**
+- Total cases count
+- Active cases count
+- Settled cases count
+
+### Custom Hooks
+
+#### useFHE Hook
+
+React hook for FHE operations with state management.
+
+**API:**
+```typescript
+const {
+  fheClient,           // FHE client instance
+  isInitialized,       // Initialization status
+  error,               // Error state
+  initializeFHE,       // Initialize client
+  encryptUint32,       // Encrypt uint32
+  encryptUint64,       // Encrypt uint64
+  encryptBool          // Encrypt boolean
+} = useFHE();
+```
+
+**Example:**
+```tsx
+function MyComponent() {
+  const { fheClient, initializeFHE, encryptUint64 } = useFHE();
+
+  useEffect(() => {
+    initializeFHE(window.ethereum);
+  }, []);
+
+  const handleSubmit = async (fee: bigint) => {
+    const encrypted = await encryptUint64(fee);
+    await contract.createCase(..., encrypted.handle, encrypted.proof);
+  };
+}
+```
+
+### Running the Frontend
+
+**Development Mode:**
+```bash
+cd react-legal-fee-app
+npm run dev
+```
+Access at `http://localhost:3003`
+
+**Production Build:**
+```bash
+npm run build
+# Output in dist/ directory
+```
+
+**Preview Production Build:**
+```bash
+npm run preview
+```
+
+### Contract Integration
+
+The frontend connects to the deployed smart contract:
+
+**Contract Address (Sepolia):**
+```
+0x462368e2BeFEb579927821a6bdd571C68dA2EB26
+```
+
+**Integration Code:**
+```typescript
+import { ethers } from 'ethers';
+import { CONTRACT_ADDRESS, CONTRACT_ABI } from './constants';
+
+const provider = new ethers.BrowserProvider(window.ethereum);
+const signer = await provider.getSigner();
+const contract = new ethers.Contract(
+  CONTRACT_ADDRESS,
+  CONTRACT_ABI,
+  signer
+);
+```
+
+### Privacy Flow in Frontend
+
+```
+User Input → Client-Side Encryption → Smart Contract → On-Chain Storage
+   ↓                ↓                        ↓              ↓
+ Plain Text    FHE SDK Encrypt         Encrypted Data   Encrypted State
+  (100 ETH)    → (0xEncrypted...)    → euint64        → Permanent Storage
+
+Only authorized parties can decrypt their allocated amounts
+```
+
+### Environment Variables
+
+Frontend environment configuration:
+
+```env
+VITE_CONTRACT_ADDRESS=0x462368e2BeFEb579927821a6bdd571C68dA2EB26
+VITE_NETWORK=sepolia
+VITE_GATEWAY_URL=https://gateway.zama.ai
+```
+
+### Deployment
+
+**Vercel Deployment:**
+
+1. Connect GitHub repository to Vercel
+2. Set build configuration:
+   - Build Command: `npm run build`
+   - Output Directory: `dist`
+   - Install Command: `npm install`
+
+3. Configure environment variables in Vercel dashboard
+
+4. Deploy automatically on Git push
+
+**Live Demo:**
+- URL: https://fhe-legal-fee-allocation.vercel.app/
+- Network: Sepolia Testnet
+- Contract: Pre-deployed and verified
+
+---
+
 ## Usage Examples
 
 ### Creating a Case with Encrypted Data
@@ -499,7 +875,7 @@ npm run test:gas
 
 ## Available Scripts
 
-### Core Commands
+### Smart Contract Commands
 
 ```bash
 # Compile contracts
@@ -529,6 +905,29 @@ npm run node
 
 # Clean artifacts
 npm run clean
+```
+
+### React Frontend Commands
+
+```bash
+# Navigate to frontend directory
+cd react-legal-fee-app
+
+# Development server (port 3003)
+npm run dev
+
+# Production build
+npm run build
+
+# Preview production build
+npm run preview
+
+# Type checking
+npm run type-check
+
+# Linting
+npm run lint
+npm run lint:fix
 ```
 
 ### Code Quality
