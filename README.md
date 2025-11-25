@@ -12,12 +12,15 @@ A privacy-preserving blockchain solution for transparent and confidential legal 
 
 ## Overview
 
-The **Confidential Legal Fee Allocation System** enables law firms, legal departments, and mediation services to fairly distribute legal fees among multiple parties while maintaining complete privacy of individual allocations. Using advanced homomorphic encryption, the system ensures that:
+The **Confidential Legal Fee Allocation System** enables law firms, legal departments, and mediation services to fairly distribute legal fees among multiple parties while maintaining complete privacy of individual allocations. Using advanced homomorphic encryption with innovative Gateway callback architecture, the system ensures that:
 
 - Fee calculations are transparent and verifiable
 - Individual party allocations remain confidential
 - Only authorized parties can view their own fee amounts
 - The entire process is immutable and auditable on the blockchain
+- **Gateway callback pattern** enables secure asynchronous decryption
+- **Automatic timeout protection** prevents permanent fund locking
+- **Refund mechanisms** handle decryption failures gracefully
 
 ---
 
@@ -86,6 +89,22 @@ The beauty of FHE is that these calculations happen **without ever decrypting th
 - **Confidential Allocations** - Individual party amounts are private
 - **Secure Calculations** - Homomorphic operations preserve privacy
 - **Access Control** - Only authorized parties can view their data
+- **Input Validation** - Comprehensive parameter validation prevents invalid states
+- **Overflow Protection** - Safe math operations prevent arithmetic vulnerabilities
+- **Privacy-Preserving Division** - Random multiplier technique prevents information leakage
+
+### Gateway Callback Architecture
+- **Asynchronous Decryption** - Non-blocking Gateway callback pattern
+- **Three-Step Process** - Calculate → Request → Callback workflow
+- **Cryptographic Verification** - Gateway provides decryption proofs
+- **State Tracking** - Request ID mapping and callback status monitoring
+
+### Timeout Protection & Refunds
+- **Decryption Timeout** - 7-day protection against Gateway failures
+- **Case Inactivity Timeout** - 90-day protection against abandoned cases
+- **Automatic Refund Eligibility** - Cases become refundable after timeout
+- **Party Refund Requests** - Parties can claim refunds when eligible
+- **Double-Spend Prevention** - One-time refund/payment per party
 
 ### Case Management
 - **Multi-Party Support** - Handle cases with 2+ parties
@@ -284,21 +303,53 @@ npm run simulate
 
 ## Smart Contract Architecture
 
+### Innovative Gateway Callback Pattern
+
+The system implements a **three-phase asynchronous decryption workflow** using Zama's Gateway:
+
+```
+Phase 1: Encrypted Calculation
+├── User submits encrypted request
+├── Contract performs FHE operations
+└── Encrypted result stored on-chain
+
+Phase 2: Decryption Request
+├── Admin requests decryption
+├── Contract sends ciphertext to Gateway
+├── Request ID generated and tracked
+└── Timeout timer starts
+
+Phase 3: Gateway Callback
+├── Gateway decrypts ciphertext off-chain
+├── Gateway calls callback function with proof
+├── Contract verifies cryptographic proof
+└── Decrypted value stored securely
+
+Fallback: Timeout Protection
+├── If Gateway doesn't respond in 7 days
+├── Case becomes refundable
+└── Parties can claim refunds
+```
+
 ### Core Data Structures
 
-#### LegalCase
+#### LegalCase (Enhanced)
 ```solidity
 struct LegalCase {
     uint256 caseId;
     address[] parties;
-    euint64 totalFee;           // Encrypted
-    euint32 complexity;         // Encrypted
-    euint32 timeSpent;          // Encrypted
+    euint64 totalFee;                    // Encrypted
+    euint32 complexity;                  // Encrypted
+    euint32 timeSpent;                   // Encrypted
     bool isActive;
     bool isSettled;
     uint256 createdAt;
     uint256 settledAt;
     bytes32 caseHash;
+    uint256 decryptionRequestId;         // ✨ NEW: Gateway request tracking
+    bool decryptionRequested;            // ✨ NEW: Request status
+    uint256 decryptionRequestTime;       // ✨ NEW: Timeout tracking
+    bool isRefundable;                   // ✨ NEW: Refund eligibility
 }
 ```
 
@@ -313,14 +364,16 @@ struct PartyAllocation {
 }
 ```
 
-#### FeeCalculation
+#### FeeCalculation (Enhanced)
 ```solidity
 struct FeeCalculation {
-    euint64 baseFee;            // Encrypted
+    euint64 baseFee;                     // Encrypted
     euint32 complexityMultiplier;
     euint32 timeMultiplier;
-    euint64 finalAmount;        // Encrypted
+    euint64 finalAmount;                 // Encrypted
     bool isCalculated;
+    uint64 revealedAmount;               // ✨ NEW: Decrypted amount from Gateway
+    bool isRevealed;                     // ✨ NEW: Decryption completion status
 }
 ```
 
@@ -358,13 +411,47 @@ function setResponsibilityRatio(
 ```
 Assigns encrypted responsibility percentage to a party.
 
-**calculateFeeAllocation**
+**calculateFeeAllocation** (Enhanced with Privacy-Preserving Division)
 ```solidity
 function calculateFeeAllocation(
     uint256 _caseId
 ) external onlyAdmin
 ```
-Performs encrypted calculations to distribute fees.
+Performs encrypted calculations to distribute fees using **random multiplier obfuscation** to prevent division leakage and price inference attacks.
+
+**requestFeeDecryption** ✨ NEW
+```solidity
+function requestFeeDecryption(
+    uint256 _caseId
+) external onlyAdmin
+```
+Initiates Gateway callback decryption request for encrypted fee amount. Returns request ID for tracking.
+
+**feeDecryptionCallback** ✨ NEW
+```solidity
+function feeDecryptionCallback(
+    uint256 requestId,
+    bytes memory cleartexts,
+    bytes memory decryptionProof
+) external
+```
+Gateway callback function - receives decrypted values with cryptographic proof. Automatically called by Zama Gateway.
+
+**handleDecryptionTimeout** ✨ NEW
+```solidity
+function handleDecryptionTimeout(
+    uint256 _caseId
+) external
+```
+Enables refunds if Gateway fails to respond within 7 days.
+
+**handleCaseTimeout** ✨ NEW
+```solidity
+function handleCaseTimeout(
+    uint256 _caseId
+) external
+```
+Enables refunds for cases inactive for 90+ days.
 
 **emergencySettleCase**
 ```solidity
@@ -383,6 +470,14 @@ function recordPayment(
 ) external onlyParty(_caseId)
 ```
 Records that a party has paid their allocated fee.
+
+**requestRefund** ✨ NEW
+```solidity
+function requestRefund(
+    uint256 _caseId
+) external onlyParty(_caseId)
+```
+Allows parties to claim refunds when case is marked refundable due to timeout.
 
 #### View Functions
 
@@ -413,6 +508,42 @@ function getSystemStats()
     )
 ```
 Returns overall system statistics.
+
+**getDecryptionStatus** ✨ NEW
+```solidity
+function getDecryptionStatus(
+    uint256 _caseId
+) external view returns (
+    bool requested,
+    bool revealed,
+    uint256 requestId,
+    uint256 requestTime
+)
+```
+Retrieves Gateway decryption status and request information.
+
+**getRefundStatus** ✨ NEW
+```solidity
+function getRefundStatus(
+    uint256 _caseId
+) external view returns (
+    bool isRefundable,
+    bool decryptionTimedOut,
+    bool caseTimedOut
+)
+```
+Checks refund eligibility and timeout status.
+
+**getRevealedFee** ✨ NEW
+```solidity
+function getRevealedFee(
+    uint256 _caseId
+) external view returns (
+    bool revealed,
+    uint64 amount
+)
+```
+Gets decrypted fee amount after successful Gateway callback.
 
 ---
 
@@ -737,9 +868,11 @@ VITE_GATEWAY_URL=https://gateway.zama.ai
 
 ---
 
-## Usage Examples
+## Complete Workflow with Gateway Callback Pattern
 
-### Creating a Case with Encrypted Data
+### Step-by-Step Integration Example
+
+#### 1. Creating a Case with Encrypted Data
 
 ```javascript
 // All sensitive data is encrypted before being stored
@@ -775,18 +908,72 @@ await contract.calculateFeeAllocation(caseId);
 // Each party's fee is now calculated and encrypted
 ```
 
-### Recording Payment
+#### 5. Request Gateway Decryption (NEW)
+
+```javascript
+// Admin requests decryption via Gateway callback
+const decryptTx = await contract.requestFeeDecryption(caseId);
+const receipt = await decryptTx.wait();
+
+// Extract request ID from event
+const requestId = receipt.events.find(e => e.event === 'DecryptionRequested').args.requestId;
+console.log(`Decryption request ID: ${requestId}`);
+```
+
+#### 6. Gateway Processes Callback (Automatic)
+
+```javascript
+// Zama Gateway automatically calls feeDecryptionCallback after decryption
+// No manual intervention required - Gateway handles this step
+
+// Check decryption status
+const status = await contract.getDecryptionStatus(caseId);
+if (status.revealed) {
+    const revealedFee = await contract.getRevealedFee(caseId);
+    console.log(`Decrypted fee: ${revealedFee.amount}`);
+}
+```
+
+#### 7. Recording Payment
 
 ```javascript
 // Party records their payment
 await contract.connect(partySigner).recordPayment(caseId);
 ```
 
+### Handling Timeout Scenarios
+
+#### Decryption Timeout (Gateway Failure)
+
+```javascript
+// After 7 days without Gateway response
+await contract.handleDecryptionTimeout(caseId);
+
+// Check refund eligibility
+const refundStatus = await contract.getRefundStatus(caseId);
+if (refundStatus.isRefundable) {
+    // Parties can claim refunds
+    await contract.connect(partySigner).requestRefund(caseId);
+}
+```
+
+#### Case Inactivity Timeout
+
+```javascript
+// After 90 days of case inactivity
+await contract.handleCaseTimeout(caseId);
+
+// Enable refunds for all parties
+const refundStatus = await contract.getRefundStatus(caseId);
+console.log(`Refundable: ${refundStatus.isRefundable}`);
+console.log(`Case timed out: ${refundStatus.caseTimedOut}`);
+```
+
 ---
 
-## Privacy-Preserving Fee Calculation
+## Privacy-Preserving Fee Calculation with Random Multiplier Obfuscation
 
-The system performs all calculations on encrypted values using FHE:
+The system performs all calculations on encrypted values using FHE with advanced privacy protection:
 
 ```
 Step 1: Encrypt Input Data
@@ -794,21 +981,87 @@ Step 1: Encrypt Input Data
   Complexity (75) → euint32
   Time (120 hours) → euint32
 
-Step 2: Calculate on Encrypted Values
-  Complexity Factor = (encrypted_75 / 10) * 1000 = encrypted_7500
+Step 2: Calculate with Privacy-Preserving Division
+  🔒 Generate Random Obfuscation Factor (1000-1999)
+  🔒 Obfuscated Complexity = encrypted_75 * randomFactor
+  🔒 Complexity Multiplier = obfuscatedComplexity / (10 * randomFactor)
+
+  ✨ This prevents division leakage and price inference attacks
+
   Time Factor = (encrypted_120 / 40) * 500 = encrypted_1500
   Adjusted Fee = encrypted_50000 + encrypted_7500 + encrypted_1500
 
-Step 3: Distribute Encrypted Fees
+Step 3: Distribute Encrypted Fees with Precision
   Party 1 (40%) = encrypted_AdjustedFee * encrypted_40 / 100
   Party 2 (35%) = encrypted_AdjustedFee * encrypted_35 / 100
   Party 3 (25%) = encrypted_AdjustedFee * encrypted_25 / 100
 
-Step 4: Decryption (Only by Authorized Party)
+Step 4: Gateway Callback Decryption (NEW)
+  Admin requests decryption → Gateway decrypts off-chain
+  Gateway calls callback with proof → Contract verifies proof
+  Decrypted value stored securely → Parties can view revealed fee
+
+  ⏱️ Timeout Protection: If Gateway fails, refunds enabled after 7 days
+
+Step 5: Authorized Viewing (Enhanced)
   Party 1 can decrypt their own allocation
   Party 2 can decrypt their own allocation
   Party 3 can decrypt their own allocation
-  Admin cannot decrypt individual allocations
+  Admin can view revealed fee after Gateway callback
+  Admin cannot decrypt individual allocations without Gateway
+```
+
+---
+
+## Security Features & Gas Optimization
+
+### Input Validation (Audit-Ready)
+```solidity
+✅ Address validation (non-zero checks)
+✅ Array length validation (min/max bounds)
+✅ Percentage validation (1-100 range)
+✅ Amount validation (positive values)
+✅ Duplicate address prevention
+```
+
+### Access Control (Multi-Layer)
+```solidity
+✅ onlyAdmin modifier for administrative functions
+✅ onlyParty modifier for party-specific operations
+✅ caseExists modifier for valid case verification
+✅ caseActive modifier for active case operations
+```
+
+### Overflow Protection (Safe Math)
+```solidity
+✅ _safeAdd() - Addition overflow prevention
+✅ _safeSub() - Subtraction underflow prevention
+✅ _safeMul() - Multiplication overflow prevention
+```
+
+### Privacy Protection Techniques
+```solidity
+✅ Random multiplier obfuscation for division operations
+✅ Price fuzzing to prevent value inference
+✅ FHE.allowThis() for contract-level access
+✅ FHE.allow() for party-specific permissions
+```
+
+### Gas Optimization (HCU Management)
+```solidity
+✅ Batch FHE operations where possible
+✅ Minimize storage writes with efficient state updates
+✅ Use view functions for read-only operations
+✅ Optimize loop iterations in party distributions
+✅ Strategic use of HCU (Homomorphic Computation Units)
+```
+
+### Timeout Protection Architecture
+```solidity
+⏱️ DECRYPTION_TIMEOUT = 7 days (Gateway failure protection)
+⏱️ CASE_TIMEOUT = 90 days (Inactivity protection)
+⏱️ Automatic refund eligibility after timeout
+⏱️ One-time refund/payment per party
 ```
 
 ---
@@ -817,12 +1070,22 @@ Step 4: Decryption (Only by Authorized Party)
 
 The contract emits the following events:
 
-- `CaseCreated(uint256 caseId, bytes32 caseHash, uint256 partyCount)`
-- `FeeCalculated(uint256 caseId, address calculator)`
-- `AllocationUpdated(uint256 caseId, address party)`
-- `PaymentRecorded(uint256 caseId, address party)`
-- `CaseSettled(uint256 caseId, uint256 settlementTime)`
-- `ResponsibilityDistributed(uint256 caseId, uint256 partyCount)`
+### Core Events
+- `CaseCreated(uint256 indexed caseId, bytes32 indexed caseHash, uint256 partyCount)`
+- `FeeCalculated(uint256 indexed caseId, address indexed calculator)`
+- `AllocationUpdated(uint256 indexed caseId, address indexed party)`
+- `PaymentRecorded(uint256 indexed caseId, address indexed party)`
+- `CaseSettled(uint256 indexed caseId, uint256 settlementTime)`
+- `ResponsibilityDistributed(uint256 indexed caseId, uint256 partyCount)`
+
+### Gateway Callback Events ✨ NEW
+- `DecryptionRequested(uint256 indexed caseId, uint256 requestId)` - Emitted when Gateway decryption is requested
+- `DecryptionCompleted(uint256 indexed caseId, uint64 revealedAmount)` - Emitted when Gateway callback succeeds
+- `DecryptionFailed(uint256 indexed caseId, string reason)` - Emitted when decryption fails or times out
+
+### Timeout & Refund Events ✨ NEW
+- `TimeoutTriggered(uint256 indexed caseId, string reason)` - Emitted when timeout condition is met
+- `RefundIssued(uint256 indexed caseId, address indexed party)` - Emitted when party claims refund
 
 ---
 
